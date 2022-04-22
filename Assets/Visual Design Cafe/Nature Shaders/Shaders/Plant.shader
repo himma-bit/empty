@@ -161,7 +161,7 @@ Shader "Universal Render Pipeline/Nature Shaders/Plant"
             
             // Nature Renderer integration
             #pragma multi_compile_instancing
-            #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            // #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
 
             #pragma enable_d3d11_debug_symbols
             #pragma multi_compile _ PROCEDURAL_INSTANCING_ON
@@ -2498,7 +2498,11 @@ Shader "Universal Render Pipeline/Nature Shaders/Plant"
             
             // Nature Renderer integration
             #pragma multi_compile_instancing
-            #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            // #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            
+            #pragma enable_d3d11_debug_symbols
+            #pragma multi_compile _ PROCEDURAL_INSTANCING_ON
+            #define UNITY_INSTANCING_PROCEDURAL_FUNC unity_instancing_procedural_func
             
             // BUG:
             // This define needs to be put BEFORE embedding the Lit.Config file below,
@@ -4639,7 +4643,11 @@ Shader "Universal Render Pipeline/Nature Shaders/Plant"
             
             // Nature Renderer integration
             #pragma multi_compile_instancing
-            #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            // #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+
+            #pragma enable_d3d11_debug_symbols
+            #pragma multi_compile _ PROCEDURAL_INSTANCING_ON
+            #define UNITY_INSTANCING_PROCEDURAL_FUNC unity_instancing_procedural_func
             
             // BUG:
             // This define needs to be put BEFORE embedding the Lit.Config file below,
@@ -6778,7 +6786,11 @@ Shader "Universal Render Pipeline/Nature Shaders/Plant"
             
             // Nature Renderer integration
             #pragma multi_compile_instancing
-            #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            // #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+
+            #pragma enable_d3d11_debug_symbols
+            #pragma multi_compile _ PROCEDURAL_INSTANCING_ON
+            #define UNITY_INSTANCING_PROCEDURAL_FUNC unity_instancing_procedural_func
             
             // BUG:
             // This define needs to be put BEFORE embedding the Lit.Config file below,
@@ -8918,7 +8930,11 @@ Shader "Universal Render Pipeline/Nature Shaders/Plant"
             
             // Nature Renderer integration
             #pragma multi_compile_instancing
-            #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            // #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            
+            #pragma enable_d3d11_debug_symbols
+            #pragma multi_compile _ PROCEDURAL_INSTANCING_ON
+            #define UNITY_INSTANCING_PROCEDURAL_FUNC unity_instancing_procedural_func
             
             // BUG:
             // This define needs to be put BEFORE embedding the Lit.Config file below,
@@ -11101,7 +11117,11 @@ Shader "Universal Render Pipeline/Nature Shaders/Plant"
             
             // Nature Renderer integration
             #pragma multi_compile_instancing
-            #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+            // #pragma instancing_options procedural:SetupNatureRenderer nolightmap forwardadd renderinglayer
+
+            #pragma enable_d3d11_debug_symbols
+            #pragma multi_compile _ PROCEDURAL_INSTANCING_ON
+            #define UNITY_INSTANCING_PROCEDURAL_FUNC unity_instancing_procedural_func
             
             // BUG:
             // This define needs to be put BEFORE embedding the Lit.Config file below,

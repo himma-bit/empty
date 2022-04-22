@@ -350,7 +350,7 @@ namespace HiZEditTime
                     // matrix.m22 = Mathf.Abs(matrix.m22);
                     
                     drawParams.m_clusters.Add(new ClusterData(mr.bounds, displayDistanceMin, displayDistanceMax, drawParams.m_drawIndex));
-                    drawParams.m_instances.Add(new InstanceData(matrix));
+                    drawParams.m_instances.Add(new InstanceData(matrix, matrix.inverse));
                 }
             }
         }

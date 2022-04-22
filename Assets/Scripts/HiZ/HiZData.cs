@@ -44,10 +44,12 @@ namespace HiZRunTime
     public struct InstanceData
     {
         public Matrix4x4 m_mat;
+        public Matrix4x4 m_InverseMat;
 
-        public InstanceData(Matrix4x4 mMat)
+        public InstanceData(Matrix4x4 mMat, Matrix4x4 mInverseMat)
         {
             this.m_mat = mMat;
+            this.m_InverseMat = mInverseMat;
         }
     }
     
