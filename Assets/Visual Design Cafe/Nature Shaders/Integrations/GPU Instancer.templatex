@@ -1,0 +1,7 @@
+// {% comment %}
+// Copyright 2020 Visual Design Cafe. All rights reserved.
+// Package: Nature Shaders
+// Website: https://www.visualdesigncafe.com/nature-shaders
+// Documentation: https://support.visualdesigncafe.com/hc/categories/900000043503
+// {% endcomment %}
+#include "Assets/GPUInstancer/Shaders/Include/GPUInstancerInclude.cginc"

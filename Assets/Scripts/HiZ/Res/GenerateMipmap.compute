@@ -1,0 +1,28 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel GenMip
+#pragma kernel CopyFromDepth
+
+#include "UnityCG.cginc"
+
+RWTexture2D<float> _SourceTex;
+RWTexture2D<float> _DestTex;
+float4 _DepthRTSize;
+
+#pragma enable_d3d11_debug_symbols
+
+[numthreads(8,8,1)]
+void GenMip (uint2 id : SV_DispatchThreadID)
+{
+    if(id.x > _DepthRTSize.x || id.y > _DepthRTSize.y) return;
+    uint2 ori_id = id * 2;
+    float4 value = float4(_SourceTex[ori_id], _SourceTex[ori_id + uint2(1,0)], _SourceTex[ori_id + uint2(1,1)], _SourceTex[ori_id + uint2(0,1)]);
+     #ifdef UNITY_REVERSED_Z
+        value.xy = min(value.xy, value.zw);
+        _DestTex[id] = min(value.x, value.y);
+    #else
+        value.xy = max(value.xy, value.zw);
+        _DestTex[id] = max(value.x, value.y);
+    #endif
+}
+
+

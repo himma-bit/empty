@@ -1,0 +1,106 @@
+fileFormatVersion: 2
+guid: 527de00f8bf5c304fa1a8b5d89df8579
+ScriptedImporter:
+  fileIDToRecycleName:
+    100000: Main/
+    100002: Main//Meadow_Grass_01_Var4_LOD0
+    100004: Main//Meadow_Grass_01_Var4_LOD1
+    100006: Main//Meadow_Grass_01_Var4_LOD2
+    400000: Main//Transform
+    400002: Main//Meadow_Grass_01_Var4_LOD0/Transform
+    400004: Main//Meadow_Grass_01_Var4_LOD1/Transform
+    400006: Main//Meadow_Grass_01_Var4_LOD2/Transform
+    2300000: Main//Meadow_Grass_01_Var4_LOD0/MeshRenderer
+    2300002: Main//Meadow_Grass_01_Var4_LOD1/MeshRenderer
+    2300004: Main//Meadow_Grass_01_Var4_LOD2/MeshRenderer
+    3300000: Main//Meadow_Grass_01_Var4_LOD0/MeshFilter
+    3300002: Main//Meadow_Grass_01_Var4_LOD1/MeshFilter
+    3300004: Main//Meadow_Grass_01_Var4_LOD2/MeshFilter
+    4300000: Meadow_Grass_01_Var4_LOD1
+    4300002: Meadow_Grass_01_Var4_LOD2
+    4300004: Meadow_Grass_01_Var4_LOD0
+    20500000: Main//LODGroup
+    100100000: Main
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: d2f8ca521d4faaa41b1d31f0f02aec62, type: 3}
+  _source: {instanceID: 0}
+  _format: 0
+  _materialImportSettings:
+    _convertMaterials: 1
+    _settings: []
+  _textureImportSettings:
+    _convertTextures: 0
+    _settings: []
+  _meshImportSettings:
+    _convertMeshes: 1
+    _meshComplexity: 1
+    _axisOrientation: 0
+    _trunkHasColliders: 0
+    _branchWindScale: 1
+    _leafWindScale: 1
+    _windVariation: 1
+    _mergeIntersecting: 0
+    _removeDoubleSidedFaces: 1
+    _settings: []
+  _importSettings:
+    _source: {fileID: 100000, guid: 7f21be4ba62f82a4794003f6b1e2ba73, type: 3}
+    _format: 0
+    _materialImportSettings:
+      _convertMaterials: 1
+      _settings:
+      - Id: Grass Patch
+        Type: 6
+        Override: {fileID: 2100000, guid: 511943d53f3c8c9418906f1262906084, type: 2}
+        Wind: 1
+        Translucency: 1
+        Interaction: 1
+        Overlay: 1
+        FlipNormals: 1
+        Floats: []
+        Vectors: []
+        Colors: []
+        Textures: []
+    _textureImportSettings:
+      _convertTextures: 0
+      _settings:
+      - Id: Grass Patch - Albedo
+        TextureQuality: 1
+        BoostSharpness: 1
+      - Id: Grass Patch - Normal
+        TextureQuality: 1
+        BoostSharpness: 1
+      - Id: Grass Patch - Packed
+        TextureQuality: 1
+        BoostSharpness: 1
+      - Id: Grass Patch - Thickness
+        TextureQuality: 1
+        BoostSharpness: 1
+    _meshImportSettings:
+      _convertMeshes: 1
+      _meshComplexity: 1
+      _axisOrientation: 0
+      _trunkHasColliders: 0
+      _branchWindScale: 1
+      _leafWindScale: 1
+      _windVariation: 1
+      _mergeIntersecting: 0
+      _removeDoubleSidedFaces: 1
+      _settings:
+      - Id: Meadow_Grass_01_Var4_LOD0
+        SubMeshes:
+        - Id: Grass Patch
+          Type: 0
+      - Id: Meadow_Grass_01_Var4_LOD1
+        SubMeshes:
+        - Id: Grass Patch
+          Type: 0
+      - Id: Meadow_Grass_01_Var4_LOD2
+        SubMeshes:
+        - Id: Grass Patch
+          Type: 0
+    _rendererImportSettings:
+      _overrideCastShadows: 1
+      _castShadows: 2

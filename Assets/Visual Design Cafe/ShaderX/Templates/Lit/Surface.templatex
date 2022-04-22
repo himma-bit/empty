@@ -1,0 +1,152 @@
+{% comment %}
+// Copyright 2020 Visual Design Cafe. All rights reserved.
+// This shader was created using ShaderX, a shader framework by Visual Design Cafe.
+// https://www.visualdesigncafe.com/shaderx
+{% endcomment %}
+
+// Lit shader always needs UV0 and UV1
+{% define VERTEX_NEEDS_UV0 %}
+{% define VERTEX_NEEDS_UV1 %}
+{% define SURFACE_NEEDS_UV0 %}
+{% define SURFACE_NEEDS_UV1 %}
+{% standard %}
+    {% if pass.name == "META" %}
+        {% define VERTEX_NEEDS_UV2 %}
+        {% define SURFACE_NEEDS_UV2 %}
+    {% endif %}
+{% endstandard %}
+{% hd %}
+    {% define VERTEX_NEEDS_UV2 %}
+    {% define SURFACE_NEEDS_UV2 %}
+{% endhd %}
+
+struct VertexAttributes
+{
+    float3 positionOS : POSITION;
+    float3 normalOS : NORMAL;
+    float4 tangentOS : TANGENT;
+    float4 color : COLOR;
+
+    {% if VERTEX_NEEDS_UV0 %}
+        float4 uv0 : {% semantic TEXCOORD0 %};
+    {% endif %}
+    {% if VERTEX_NEEDS_UV1 %}
+        float4 uv1 : {% semantic TEXCOORD1 %};
+    {% endif %}
+    {% if VERTEX_NEEDS_UV2 %}
+        float4 uv2 : {% semantic TEXCOORD2 %};
+    {% endif %}
+    {% if VERTEX_NEEDS_UV3 %}
+        float4 uv3 : {% semantic TEXCOORD3 %};
+    {% endif %}
+
+    // User-defined attributes
+    {{VertexAttributes}}
+
+    DEFAULT_UNITY_VERTEX_INPUT_INSTANCE_ID
+};
+
+struct SurfaceInput
+{
+    float4 positionCS : SV_POSITION;
+    float3 positionWS : {% semantic TEXCOORD0 %};
+    float3 normalWS : {% semantic TEXCOORD %};
+    float4 tangentWS : {% semantic TEXCOORD %};
+    float4 color : COLOR;
+
+    {% if SURFACE_NEEDS_UV0 %}
+        float4 uv0 : {% semantic TEXCOORD %};
+    {% endif %}
+    {% if SURFACE_NEEDS_UV1 %}
+        float4 uv1 : {% semantic TEXCOORD %};
+    {% endif %}
+    {% if SURFACE_NEEDS_UV2 %}
+        float4 uv2 : {% semantic TEXCOORD %};
+    {% endif %}
+    {% if SURFACE_NEEDS_UV3 %}
+        float4 uv3 : {% semantic TEXCOORD %};
+    {% endif %}
+
+    {% standard or universal %}
+        // Standard and Universal have the View Direction calculated in the vertex shader, and passed
+        // to the fragment shader. HD calculates the View Direction per-pixel in the fragment shader.
+        // .xyz = view direction (standard, universal)
+        // .w = fogCoord (standard)
+        float4 viewDirectionWS : {% semantic TEXCOORD %}; 
+
+        // SH or Lightmap UV 
+        half4 ambientOrLightmapUV : {% semantic TEXCOORD %}; 
+        
+        // Lighting and shadow coordinates. 
+        // These are different depending on the render pipeline, so they are wrapped in 
+        // render pipeline specific tags.
+        {% if pass.name == "FORWARD" or pass.name == "FORWARD_DELTA" or pass.name == "Universal Forward" %}
+            {% standard %}
+                    // Adding the semantic in a comment to increment the internal TEXCOORD counter.
+                    DECLARE_LIGHT_COORDS({{TEXCOORD}}) // {% semantic TEXCOORD %}
+                    UNITY_SHADOW_COORDS({{TEXCOORD}}) // {% semantic TEXCOORD %}
+            {% endstandard %}
+            {% universal %}
+                    float4 fogFactorAndVertexLight : {% semantic TEXCOORD %};
+                    float4 shadowCoord : {% semantic TEXCOORD %};
+            {% enduniversal %}
+        {% endif %}
+
+        // Meta for editor visualization
+        {% standard %}
+            {% if pass.name == "META" %}
+                #ifdef EDITOR_VISUALIZATION
+                    float2 vizUV : {% semantic TEXCOORD %};
+                    float4 lightCoord : {% semantic TEXCOORD %};
+                #endif
+            {% endif %}
+        {% endstandard %}
+    {% endstandard %}
+
+    {% if pass.name == "MotionVectors" %}
+        float4 currentPositionCS : {% semantic TEXCOORD %};
+        float4 previousPositionCS : {% semantic TEXCOORD %};
+    {% endif %}
+
+    // Unity's default instancing settings.
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+    UNITY_VERTEX_OUTPUT_STEREO
+
+    // User-defined input
+    {{SurfaceInput}}
+
+    // VFACE always needs to be the last semantic in the list, 
+    // otherwise the compiler will throw an error.
+    #if defined(SHADER_STAGE_FRAGMENT)
+        FRONT_FACE_TYPE cullFace : FRONT_FACE_SEMANTIC;
+    #endif
+};
+
+struct Surface
+{
+    float3 Albedo;      // base (diffuse or specular) color
+    float3 Normal;      // tangent space normal, if written
+    half3 Emission;
+    half Metallic;      // 0=non-metal, 1=metal
+    half Smoothness;    // 0=rough, 1=smooth
+    half Occlusion;     // occlusion (default 1)
+    float Alpha;        // alpha for transparencies
+    
+    // User-defined surface
+    {{Surface}}
+};
+
+struct IndirectSurfaceLighting
+{
+    half3 diffuse;
+    half3 specular;
+};
+
+struct SurfaceLighting 
+{
+    Light light;
+    IndirectSurfaceLighting indirect;
+
+    // User-defined lighting
+    {{SurfaceLighting}}
+};

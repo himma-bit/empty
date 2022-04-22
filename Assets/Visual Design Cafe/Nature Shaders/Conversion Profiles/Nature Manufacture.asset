@@ -1,0 +1,401 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1236654335, guid: da3a78c44cb604b4397d2fe6c9dfa81c, type: 3}
+  m_Name: Nature Manufacture
+  m_EditorClassIdentifier: 
+  _source: ^NatureManufacture
+  _destination: (^|\/)Nature Shaders\/
+  _properties:
+  - _source:
+      _name: _TouchReactActive
+      _type: 1
+    _destination:
+      _name: _Interaction
+      _type: 1
+  - _source:
+      _name: 2
+      _type: 1
+    _destination:
+      _name: _SurfaceMapMethod
+      _type: 1
+  - _source:
+      _name: 1
+      _type: 1
+    _destination:
+      _name: _AlphaTest
+      _type: 1
+  - _source:
+      _name: 2 - _DoubleSidedEnable * 2
+      _type: 1
+    _destination:
+      _name: _DoubleSidedNormalMode
+      _type: 1
+  - _source:
+      _name: Grass HDRP+URP 2020.3
+      _type: 0
+    _destination:
+      _name: _SecondaryPackedMap
+      _type: 5
+  - _source:
+      _name: _Cutoff
+      _type: 1
+    _destination:
+      _name: _AlphaTestThreshold
+      _type: 1
+  - _source:
+      _name: _Color
+      _type: 4
+    _destination:
+      _name: _Tint
+      _type: 4
+  - _source:
+      _name: _Color
+      _type: 4
+    _destination:
+      _name: _TintVariation
+      _type: 4
+  - _source:
+      _name: _HealthyColor
+      _type: 4
+    _destination:
+      _name: _Tint
+      _type: 4
+  - _source:
+      _name: _DryColor
+      _type: 4
+    _destination:
+      _name: _TintVariation
+      _type: 4
+  - _source:
+      _name: _MainTex
+      _type: 5
+    _destination:
+      _name: _Albedo
+      _type: 5
+  - _source:
+      _name: _MainTex
+      _type: 5
+    _destination:
+      _name: _MainTex
+      _type: 5
+  - _source:
+      _name: _MetallicPower
+      _type: 1
+    _destination:
+      _name: _Metallic
+      _type: 1
+  - _source:
+      _name: _SmoothnessPower
+      _type: 1
+    _destination:
+      _name: _Glossiness
+      _type: 1
+  - _source:
+      _name: _SmoothnessPower
+      _type: 1
+    _destination:
+      _name: _GlossRemap.y
+      _type: 3
+  - _source:
+      _name: _BackFaceMirrorNormal
+      _type: 1
+    _destination:
+      _name: _DoubleSidedNormalMode
+      _type: 1
+  - _source:
+      _name: _BumpMap
+      _type: 5
+    _destination:
+      _name: _NormalMap
+      _type: 5
+  - _source:
+      _name: _BumpScale
+      _type: 1
+    _destination:
+      _name: _NormalMapScale
+      _type: 1
+  - _source:
+      _name: _AmbientOcclusionG
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: 1-_AmbientOcclusionPower
+      _type: 1
+    _destination:
+      _name: _OcclusionRemap.x
+      _type: 3
+  - _source:
+      _name: Trunk/Bark HDRP+URP 2020.3
+      _type: 0
+    _destination:
+      _name: _SecondaryPackedMap
+      _type: 5
+  - _source:
+      _name: _TrunkBaseColor
+      _type: 4
+    _destination:
+      _name: _Tint
+      _type: 4
+  - _source:
+      _name: _TrunkBaseColor
+      _type: 4
+    _destination:
+      _name: _TintVariation
+      _type: 4
+  - _source:
+      _name: _TrunkBaseColorMap
+      _type: 5
+    _destination:
+      _name: _Albedo
+      _type: 5
+  - _source:
+      _name: _TrunkNormalMap
+      _type: 5
+    _destination:
+      _name: _NormalMap
+      _type: 5
+  - _source:
+      _name: _TrunkNormalScale
+      _type: 1
+    _destination:
+      _name: _NormalMapScale
+      _type: 1
+  - _source:
+      _name: _TrunkMaskMap
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _TrunkAORemapMin
+      _type: 1
+    _destination:
+      _name: _OcclusionRemap.x
+      _type: 3
+  - _source:
+      _name: _TrunkAORemapMax
+      _type: 1
+    _destination:
+      _name: _OcclusionRemap.y
+      _type: 3
+  - _source:
+      _name: _TrunkSmoothnessRemapMin
+      _type: 1
+    _destination:
+      _name: _GlossRemap.x
+      _type: 3
+  - _source:
+      _name: _TrunkSmoothnessRemapMax
+      _type: 1
+    _destination:
+      _name: _GlossRemap.y
+      _type: 3
+  - _source:
+      _name: _BarkUseUV3
+      _type: 1
+    _destination:
+      _name: _SecondaryMaps
+      _type: 1
+  - _source:
+      _name: _BarkBaseColorMap
+      _type: 5
+    _destination:
+      _name: _SecondaryAlbedo
+      _type: 5
+  - _source:
+      _name: _BarkNormalMap
+      _type: 5
+    _destination:
+      _name: _SecondaryNormalMap
+      _type: 5
+  - _source:
+      _name: _BarkNormalScale
+      _type: 1
+    _destination:
+      _name: _SecondaryNormalMapScale
+      _type: 1
+  - _source:
+      _name: _BarkMaskMap
+      _type: 5
+    _destination:
+      _name: _SecondaryPackedMap
+      _type: 5
+  - _source:
+      _name: _BarkSmoothnessRemapMin
+      _type: 1
+    _destination:
+      _name: _SecondaryGlossRemap.x
+      _type: 3
+  - _source:
+      _name: _BarkSmoothnessRemapMax
+      _type: 1
+    _destination:
+      _name: _SecondaryGlossRemap.y
+      _type: 3
+  - _source:
+      _name: _BarkAORemapMin
+      _type: 1
+    _destination:
+      _name: _SecondaryOcclusionRemap.x
+      _type: 3
+  - _source:
+      _name: _BarkAORemapMax
+      _type: 1
+    _destination:
+      _name: _SecondaryOcclusionRemap.y
+      _type: 3
+  - _source:
+      _name: Foliage HDRP+URP 2020.3
+      _type: 0
+    _destination:
+      _name: _SecondaryPackedMap
+      _type: 5
+  - _source:
+      _name: _AlphaCutoff
+      _type: 1
+    _destination:
+      _name: _AlphaTestThreshold
+      _type: 1
+  - _source:
+      _name: _BaseColorMap
+      _type: 5
+    _destination:
+      _name: _Albedo
+      _type: 5
+  - _source:
+      _name: _BaseColorMap
+      _type: 5
+    _destination:
+      _name: _MainTex
+      _type: 5
+  - _source:
+      _name: _MaskMap
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _AORemapMin
+      _type: 1
+    _destination:
+      _name: _OcclusionRemap.x
+      _type: 3
+  - _source:
+      _name: _AORemapMax
+      _type: 1
+    _destination:
+      _name: _OcclusionRemap.y
+      _type: 3
+  - _source:
+      _name: _SmoothnessRemapMin
+      _type: 1
+    _destination:
+      _name: _GlossRemap.x
+      _type: 3
+  - _source:
+      _name: _SmoothnessRemapMax
+      _type: 1
+    _destination:
+      _name: _GlossRemap.y
+      _type: 3
+  - _source:
+      _name: Foliage URP 2020.3
+      _type: 0
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _NormalScale
+      _type: 1
+    _destination:
+      _name: _NormalMapScale
+      _type: 1
+  - _source:
+      _name: Trunk/Bark Standard 2020.3
+      _type: 0
+    _destination:
+      _name: 
+      _type: 0
+  - _source:
+      _name: _MetalicRAOGSmothnessA
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _AmbientOcclusionG
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _DetalUseUV3
+      _type: 1
+    _destination:
+      _name: _SecondaryMaps
+      _type: 1
+  - _source:
+      _name: _DetailAlbedoMap
+      _type: 5
+    _destination:
+      _name: _SecondaryAlbedo
+      _type: 5
+  - _source:
+      _name: _DetailNormalMap
+      _type: 5
+    _destination:
+      _name: _SecondaryNormalMap
+      _type: 5
+  - _source:
+      _name: _DetailNormal
+      _type: 5
+    _destination:
+      _name: _SecondaryNormalMap
+      _type: 5
+  - _source:
+      _name: _DetailNormalMapScale
+      _type: 1
+    _destination:
+      _name: _SecondaryNormalMapScale
+      _type: 1
+  - _source:
+      _name: _DetailMetalicRAOGSmothnessA
+      _type: 5
+    _destination:
+      _name: _SecondaryPackedMap
+      _type: 5
+  - _source:
+      _name: _DetailAmbientOcclusionG
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: Leaves Standard 2020.3
+      _type: 0
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _MetalicRAOGSmothnessA
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5
+  - _source:
+      _name: _AmbientOcclusionGSmoothnessA
+      _type: 5
+    _destination:
+      _name: _PackedMap
+      _type: 5

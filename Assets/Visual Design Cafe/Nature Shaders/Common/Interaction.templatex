@@ -1,0 +1,141 @@
+{% comment %}
+// Copyright 2020 Visual Design Cafe. All rights reserved.
+// This shader was created using ShaderX, a shader framework by Visual Design Cafe.
+// https://www.visualdesigncafe.com/shaderx
+
+// Package: Nature Shaders
+// Website: https://www.visualdesigncafe.com/nature-shaders
+// Documentation: https://support.visualdesigncafe.com/hc/categories/900000043503
+{% endcomment %}
+
+float4 _InteractionZonePosition;
+float4 _InteractionZoneSize;
+sampler2D _InteractionData;
+float _InteractionDataTexelSize;
+float _InteractionConstantFade;
+
+// TODO: Move this calculations so that we don't need to calculate the UV for each sample.
+float2 InteractionDataUV( float3 vertexWorldPosition )
+{
+    float2 relativePosition = vertexWorldPosition.xz - _InteractionZonePosition.xz + _InteractionZoneSize.xz * 0.5;
+    float2 normalizedPosition = relativePosition / _InteractionZoneSize.xz;
+    return normalizedPosition;
+}
+
+float4 SampleInteractionData( float3 vertexWorldPosition, float2 offset )
+{
+    float2 uv = InteractionDataUV( vertexWorldPosition ) + offset;
+    #if !UNITY_UV_STARTS_AT_TOP
+        uv.y = 1-uv.y;
+    #endif
+    return tex2Dlod(_InteractionData, float4(uv.x, uv.y, 0, 0));
+}
+
+float4 SampleInteractionData( float3 vertexWorldPosition )
+{
+    return SampleInteractionData( vertexWorldPosition, float2(0,0));
+}
+
+float GetHeight( float color )
+{
+    float ground = _InteractionZonePosition.y - _InteractionZoneSize.y * 0.5;
+    return ground + (1-color) * _InteractionZoneSize.y;
+}
+
+void SampleAverageInteractionData( float3 samplePosition, out float4 data, out float3 normal )
+{
+    #define SAMPLE_INTERACTION( uv ) \
+    SampleInteractionData( samplePosition, _InteractionDataTexelSize * uv.xy)
+
+    const float scale = 2;
+    float4 center = SAMPLE_INTERACTION(float2( 0, 0));
+    float4 top    = SAMPLE_INTERACTION(float2( 0,-scale));
+    float4 left   = SAMPLE_INTERACTION(float2(-scale, 0));
+    float4 right  = SAMPLE_INTERACTION(float2( scale, 0));
+    float4 bottom = SAMPLE_INTERACTION(float2( 0, scale));
+
+    #undef SAMPLE_INTERACTION
+
+    data = center;
+
+    float4 h;
+    h[0] = GetHeight( top.g );
+    h[1] = GetHeight( left.g );
+    h[2] = GetHeight( right.g );
+    h[3] = GetHeight( bottom.g );
+    float3 n;
+    n.z = h[3] - h[0];
+    n.x = h[2] - h[1];
+    n.y = 0.001;
+
+    normal = normalize(n);
+}
+
+void Interact( 
+    inout float3 vertexWorldPosition, 
+    float3 objectPivot, 
+    float mask,
+    float phaseOffset,
+    float interactionDuration,
+    float interactionStrength,
+    float interactionPushDown )
+{
+    // There is no valid interaction data if the vertex is outside of the interaction zone.
+    float3 dist = abs(vertexWorldPosition - _InteractionZonePosition.xyz);
+
+    UNITY_BRANCH
+    if( dist.x > _InteractionZoneSize.x * 0.5 
+        || dist.y > _InteractionZoneSize.y * 0.5 
+        || dist.z > _InteractionZoneSize.z * 0.5 )
+    {
+        return;
+    }
+
+    // Sample at either objectPivot or vertexWorldPosition. 
+    // Object Pivot is good for plants that have a lot of vertices, 
+    // because sampling per-vertex can cause distortion. 
+    // Vertex position is best for grass.
+    float4 data;
+    float3 normal;
+    const float pivotOffset = 0.2;
+    float3 samplePosition = 
+        lerp(
+            objectPivot.xyz + float3(0,pivotOffset,0), 
+            vertexWorldPosition.xyz, 
+            _Interaction - 1.0 ); // Off: 0, Pivot: 1, Vertex: 2.
+
+    SampleAverageInteractionData( samplePosition, data, normal );
+
+    #ifdef SHADERPASS_MOTION_VECTORS_PREV_FRAME
+        float fade = (data.r - _InteractionConstantFade) - data.g;
+    #else
+        float fade = data.r - data.g;
+    #endif
+    float life = 1 - saturate(fade / _InteractionConstantFade / (interactionDuration + (1-phaseOffset) * 2));
+
+    // It is possible that the normal can't be calculated, for example: if there is a box
+    // collider that is perfectly horizontal then the normals under the box will end up as 0.
+    // In this case, replace the normal with the direction from the object pivot.
+    if( !all(normal) )
+        normal.xz = objectPivot.xz - vertexWorldPosition.xz;
+
+    float motionAmplitude = cos((1-life) * 20.0 ) * life * life;
+    float heightDifference = max(vertexWorldPosition.y - GetHeight( data.g ), 0);
+    float overlap = max(vertexWorldPosition.y - GetHeight( data.r ), 0);
+
+    vertexWorldPosition.y -= 
+        min( 
+            heightDifference * interactionPushDown, 
+            max( vertexWorldPosition.y - objectPivot.y, 0 ) );
+
+    vertexWorldPosition = 
+        FixStretching(
+            vertexWorldPosition
+                 + float3(normal.x, 0, normal.z) 
+                    * motionAmplitude 
+                    * mask 
+                    * interactionStrength 
+                    * overlap,
+            vertexWorldPosition,
+            float3(samplePosition.x, objectPivot.y, samplePosition.z));
+}

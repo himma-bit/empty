@@ -1,0 +1,15 @@
+{
+    "name": "FreeImageUtils",
+    "references": [
+        "GUID:a1d2d3316f2372f4bb94d880bda974ae"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

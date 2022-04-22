@@ -1,0 +1,745 @@
+{% comment %}
+// Copyright 2020 Visual Design Cafe. All rights reserved.
+// This shader was created using ShaderX, a shader framework by Visual Design Cafe.
+// https://www.visualdesigncafe.com/shaderx
+{% endcomment %}
+
+{% hd %}
+
+    Properties 
+    {
+        [HideInInspector]_ZTestGBuffer("Vector1", Int) = 4 
+        [HideInInspector]_ZTestForward("Vector1", Int) = 4 
+        // Stencil
+        [HideInInspector]_StencilRef("Vector1", Int) = 0 
+        [HideInInspector]_StencilWriteMask("Vector1", Int) = 6 
+        [HideInInspector]_StencilRefDepth("Vector1", Int) = 8
+        [HideInInspector]_StencilWriteMaskDepth("Vector1", Int) = 8
+        [HideInInspector]_StencilRefGBuffer("Vector1", Int) = 10
+        [HideInInspector]_StencilWriteMaskGBuffer("Vector1", Int) = 14
+        [HideInInspector]_StencilRefMV("_StencilRefMV", Int) = 32 
+        [HideInInspector]_StencilWriteMaskMV("_StencilWriteMaskMV", Int) = 32 
+        [HideInInspector]_StencilRefDistortionVec("_StencilRefDistortionVec", Int) = 4
+        [HideInInspector]_StencilWriteMaskDistortionVec("_StencilWriteMaskDistortionVec", Int) = 4 
+    }
+
+    CBUFFER_START( UnityPerMaterial )
+        float _ZTestForward;
+        float _ZTestGBuffer;
+        //
+        float _StencilRef;
+        float _StencilWriteMask;
+        float _StencilRefDepth;
+        float _StencilWriteMaskDepth;
+        float _StencilRefGBuffer;
+        float _StencilWriteMaskGBuffer;
+        float _StencilRefMV;
+        float _StencilWriteMaskMV;
+        float _StencilRefDistortionVec;
+        float _StencilWriteMaskDistortionVec;
+    CBUFFER_END
+
+    // Vertex
+    SurfaceInput vert( VertexAttributes input )
+    {
+        SurfaceInput output = (SurfaceInput)0;
+
+        UNITY_SETUP_INSTANCE_ID(input);
+        UNITY_TRANSFER_INSTANCE_ID(input, output);
+        UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+
+        {% if PreVertexMethod %}
+            {{PreVertexMethod}}( input );
+        {% endif %}
+
+        float3 positionRWS = TransformObjectToWorld(input.positionOS);
+        float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+        float4 tangentWS = float4(TransformObjectToWorldDir(input.tangentOS.xyz), input.tangentOS.w);
+
+        output.positionCS = TransformWorldToHClip( positionRWS );
+        output.positionWS = positionRWS;
+        output.normalWS = normalWS;
+        output.tangentWS = tangentWS;
+        
+        {% if SURFACE_NEEDS_UV0 %}
+            output.uv0 = input.uv0;
+        {% endif %}
+        {% if SURFACE_NEEDS_UV1 %}
+            output.uv1 = input.uv1;
+        {% endif %}
+        {% if SURFACE_NEEDS_UV2 %}
+            output.uv2 = input.uv2;
+        {% endif %}
+        {% if SURFACE_NEEDS_UV3 %}
+            output.uv3 = input.uv3;
+        {% endif %}
+
+        output.color = input.color;
+
+        {% if pass.name == "MotionVectors" %}
+            SurfaceInput previousOutput = output;
+            previousOutput.positionWS = TransformPreviousObjectToWorld( input.positionOS );
+            previousOutput.normalWS = TransformPreviousObjectToWorldNormal( input.normalOS );
+        {% endif %}
+
+        {% if VertexMethod %}
+            {{VertexMethod}}( input, output, float4(0,0,0,0) );
+
+            // Recalculate vertex based on modifications to output
+            // TODO: Only do this if the position changed
+            input.positionOS = TransformWorldToObject( output.positionWS );
+            output.positionCS = TransformWorldToHClip( output.positionWS );
+
+            {% if SURFACE_NEEDS_UV0 %}
+                input.uv0 = output.uv0;
+            {% endif %}
+            {% if SURFACE_NEEDS_UV1 %}
+                input.uv1 = output.uv1;
+            {% endif %}
+            {% if SURFACE_NEEDS_UV2 %}
+                input.uv2 = output.uv2;
+            {% endif %}
+            {% if SURFACE_NEEDS_UV3 %}
+                input.uv3 = output.uv3;
+            {% endif %}
+        {% endif %}
+
+        positionRWS = output.positionWS;
+        normalWS = output.normalWS;
+        tangentWS = output.tangentWS;
+
+        {% if PostVertexMethod %}
+            {{PostVertexMethod}}( input, output );
+        {% endif %}
+
+        {% if pass.name == "MotionVectors" and VertexMethod %}
+            #define SHADERPASS_MOTION_VECTORS_PREV_FRAME
+            
+            // Output current vertex position.
+            output.currentPositionCS = mul(UNITY_MATRIX_UNJITTERED_VP, float4(positionRWS, 1.0));
+
+            // Calculate previous vertex position.
+            float4 deltaTime = _TimeParameters - _LastTimeParameters;
+            {{VertexMethod}}( input, previousOutput, -deltaTime );
+
+            // Output previous vertex position.
+            output.previousPositionCS = mul(UNITY_MATRIX_PREV_VP, float4(previousOutput.positionWS, 1.0));
+
+            #undef SHADERPASS_MOTION_VECTORS_PREV_FRAME
+        {% endif %}
+
+        return output;
+    }
+
+    {% if pass.name == "Meta" %}
+        CBUFFER_START(UnityMetaPass)
+            // x = use uv1 as raster position
+            // y = use uv2 as raster position
+            bool4 unity_MetaVertexControl;
+
+            // x = return albedo
+            // y = return normal
+            bool4 unity_MetaFragmentControl;
+        CBUFFER_END
+
+        // This was not in constant buffer in original unity, so keep outiside. But should be in as ShaderRenderPass frequency
+        float unity_OneOverOutputBoost;
+        float unity_MaxOutputValue;
+    {% endif %}
+
+    #ifdef DEBUG_DISPLAY
+        float4 ForwardDebug( 
+            FragInputs input, 
+            SurfaceData surfaceData,
+            BuiltinData builtinData,
+            BSDFData bsdfData,
+            PositionInputs posInput )
+        {
+            float4 outColor = (float4)0;
+
+            // Same code in ShaderPassForwardUnlit.shader
+            // Reminder: _DebugViewMaterialArray[i]
+            //   i==0 -> the size used in the buffer
+            //   i>0  -> the index used (0 value means nothing)
+            // The index stored in this buffer could either be
+            //   - a gBufferIndex (always stored in _DebugViewMaterialArray[1] as only one supported)
+            //   - a property index which is different for each kind of material even if reflecting the same thing (see MaterialSharedProperty)
+            bool viewMaterial = false;
+            int bufferSize = (int)_DebugViewMaterialArray[0];
+            if (bufferSize != 0)
+            {
+                bool needLinearToSRGB = false;
+                float3 result = float3(1.0, 0.0, 1.0);
+
+                // Loop through the whole buffer
+                // Works because GetSurfaceDataDebug will do nothing if the index is not a known one
+                for (int index = 1; index <= bufferSize; index++)
+                {
+                    int indexMaterialProperty = (int)_DebugViewMaterialArray[index];
+
+                    // skip if not really in use
+                    if (indexMaterialProperty != 0)
+                    {
+                        viewMaterial = true;
+
+                        GetPropertiesDataDebug(indexMaterialProperty, result, needLinearToSRGB);
+                        GetVaryingsDataDebug(indexMaterialProperty, input, result, needLinearToSRGB);
+                        {% if unity.version.major >= 2020 %}
+                            GetBuiltinDataDebug(indexMaterialProperty, builtinData, posInput, result, needLinearToSRGB);
+                        {% else %}
+                            GetBuiltinDataDebug(indexMaterialProperty, builtinData, result, needLinearToSRGB);
+                        {% endif %}
+                        GetSurfaceDataDebug(indexMaterialProperty, surfaceData, result, needLinearToSRGB);
+                        GetBSDFDataDebug(indexMaterialProperty, bsdfData, result, needLinearToSRGB);
+                    }
+                }
+
+                // TEMP!
+                // For now, the final blit in the backbuffer performs an sRGB write
+                // So in the meantime we apply the inverse transform to linear data to compensate.
+                if (!needLinearToSRGB)
+                    result = SRGBToLinear(max(0, result));
+
+                outColor = float4(result, 1.0);
+            }
+
+            if( !viewMaterial )
+            {
+                if (_DebugFullScreenMode == FULLSCREENDEBUGMODE_VALIDATE_DIFFUSE_COLOR || _DebugFullScreenMode == FULLSCREENDEBUGMODE_VALIDATE_SPECULAR_COLOR)
+                {
+                    float3 result = float3(0.0, 0.0, 0.0);
+
+                    GetPBRValidatorDebug(surfaceData, result);
+
+                    outColor = float4(result, 1.0f);
+                }
+                else if (_DebugFullScreenMode == FULLSCREENDEBUGMODE_TRANSPARENCY_OVERDRAW)
+                {
+                    float4 result = _DebugTransparencyOverdrawWeight * float4(TRANSPARENCY_OVERDRAW_COST, TRANSPARENCY_OVERDRAW_COST, TRANSPARENCY_OVERDRAW_COST, TRANSPARENCY_OVERDRAW_A);
+                    outColor = result;
+                }
+            }
+
+            return outColor;
+        }
+    #endif
+
+    void BuildSurfaceData(
+        FragInputs fragInputs, 
+        inout Surface surface, 
+        float3 V, 
+        PositionInputs posInput, 
+        out SurfaceData surfaceData, 
+        out float3 bentNormalWS)
+    {
+        ZERO_INITIALIZE(SurfaceData, surfaceData);
+
+        // surface data
+        surfaceData.baseColor = surface.Albedo;
+        surfaceData.perceptualSmoothness = surface.Smoothness;
+        surfaceData.ambientOcclusion = surface.Occlusion;
+        surfaceData.metallic = surface.Metallic;
+        surfaceData.coatMask = 0.0;
+        surfaceData.specularOcclusion = 1.0;
+        surfaceData.subsurfaceMask = 1.0;
+        #if defined(_TRANSLUCENCY) || defined(_TRANSLUCENCY_MAP)
+            surfaceData.thickness = surface.Thickness;
+        #endif
+
+        // refraction
+        surfaceData.ior = 1.0;
+        surfaceData.transmittanceColor = float3( 1.0, 1.0, 1.0 );
+        surfaceData.atDistance = 1.0;
+        surfaceData.transmittanceMask = 0.0;
+
+        // material features
+        surfaceData.materialFeatures = MATERIALFEATUREFLAGS_LIT_STANDARD;
+        #ifdef _MATERIAL_FEATURE_SUBSURFACE_SCATTERING
+            surfaceData.diffusionProfileHash = asuint(_DiffusionProfileHash);
+            surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_SUBSURFACE_SCATTERING;
+        #endif
+        #ifdef _MATERIAL_FEATURE_TRANSMISSION
+            surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_TRANSMISSION;
+        #endif
+        #ifdef _MATERIAL_FEATURE_ANISOTROPY
+            surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_ANISOTROPY;
+        #endif
+        #ifdef _MATERIAL_FEATURE_IRIDESCENCE
+            surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_IRIDESCENCE;
+        #endif
+        #ifdef _MATERIAL_FEATURE_SPECULAR_COLOR
+            surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_SPECULAR_COLOR;
+        #endif
+
+        // others
+        #if defined (_MATERIAL_FEATURE_SPECULAR_COLOR) && defined (_ENERGY_CONSERVING_SPECULAR)
+            surfaceData.baseColor *= ( 1.0 - Max3( surfaceData.specularColor.r, surfaceData.specularColor.g, surfaceData.specularColor.b ) );
+        #endif
+
+        // normals
+        float3 normalTS = float3(0.0f, 0.0f, 1.0f);
+        normalTS = surface.Normal;
+        GetNormalWS( fragInputs, normalTS, surfaceData.normalWS, float3( 1.0, 1.0, 1.0 ) );
+        surfaceData.geomNormalWS = fragInputs.tangentToWorld[2];
+
+        // Decals
+        /*
+        #if HAVE_DECALS
+            if (_EnableDecals)
+            {
+                // Both uses and modifies 'surfaceData.normalWS'.
+                {% if unity.version.major >= 2021 %}
+                    DecalSurfaceData decalSurfaceData = GetDecalSurfaceData(posInput, fragInputs.tangentToWorld[2].xyz, surface.Alpha);
+                    ApplyDecalToSurfaceData(decalSurfaceData, fragInputs.tangentToWorld[2].xyz, surfaceData);
+                {% else %}
+                    DecalSurfaceData decalSurfaceData = GetDecalSurfaceData(posInput, surface.Alpha);
+                    ApplyDecalToSurfaceData(decalSurfaceData, surfaceData);
+                {% endif %}
+            }
+        #endif
+        */
+        
+        // TODO: Sample bent normals from BentNormalMap
+        bentNormalWS = surfaceData.normalWS;
+
+        // Debug
+        #if defined(DEBUG_DISPLAY)  && !defined(SHADER_STAGE_RAY_TRACING)
+            // TODO: ShaderX default texture names and settings differ from HDRP, 
+            // map these to the correct debug properties.
+            
+            if (_DebugMipMapMode != DEBUGMIPMAPMODE_NONE)
+            {
+                surfaceData.baseColor = 
+                    GetTextureDataDebug(
+                        _DebugMipMapMode, 
+                        fragInputs.texCoord0.xy, 
+                        _Albedo, 
+                        (float4)0, // Not supported yet in ShaderX. 
+                        (float4)0, // Not supported yet in ShaderX. 
+                        surfaceData.baseColor);
+                surfaceData.metallic = 0;
+            }
+
+            // We need to call ApplyDebugToSurfaceData after filling the surfarcedata and before filling builtinData
+            // as it can modify attribute use for static lighting
+            ApplyDebugToSurfaceData(fragInputs.tangentToWorld, surfaceData);
+        #endif
+
+        // By default we use the ambient occlusion with Tri-ace trick (apply outside) for specular occlusion.
+        // If user provide bent normal then we process a better term
+        #if defined(_BENTNORMALMAP) && defined(_SPECULAR_OCCLUSION_FROM_BENT_NORMAL_MAP)
+            // If we have bent normal and ambient occlusion, process a specular occlusion
+            #ifdef SPECULAR_OCCLUSION_USE_SPTD
+                surfaceData.specularOcclusion = GetSpecularOcclusionFromBentAOPivot(V, bentNormalWS, surfaceData.normalWS, surfaceData.ambientOcclusion, PerceptualSmoothnessToPerceptualRoughness(surfaceData.perceptualSmoothness));
+            #else
+                surfaceData.specularOcclusion = GetSpecularOcclusionFromBentAO(V, bentNormalWS, surfaceData.normalWS, surfaceData.ambientOcclusion, PerceptualSmoothnessToRoughness(surfaceData.perceptualSmoothness));
+            #endif
+            // Don't do spec occ from Ambient if there is no mask mask
+        #elif defined(_MASKMAP) && !defined(_SPECULAR_OCCLUSION_NONE)
+            surfaceData.specularOcclusion = GetSpecularOcclusionFromAmbientOcclusion(ClampNdotV(dot(surfaceData.normalWS, V)), surfaceData.ambientOcclusion, PerceptualSmoothnessToRoughness(surfaceData.perceptualSmoothness));
+        #endif
+
+        // This is use with anisotropic material
+        surfaceData.tangentWS = Orthonormalize(surfaceData.tangentWS, surfaceData.normalWS);
+        // surfaceData.tangentWS = normalize( fragInputs.tangentToWorld[ 0 ].xyz );
+
+        #if defined(_ENABLE_GEOMETRIC_SPECULAR_AA) && !defined(SHADER_STAGE_RAY_TRACING)
+            // Specular AA
+            surfaceData.perceptualSmoothness = GeometricNormalFiltering(surfaceData.perceptualSmoothness, input.tangentToWorld[2], _SpecularAAScreenSpaceVariance, _SpecularAAThreshold);
+        #endif
+    }
+
+    void GetSurfaceAndBuiltinData(
+        Surface surface,
+        FragInputs fragInputs, 
+        float3 V, 
+        inout PositionInputs posInput, 
+        out SurfaceData surfaceData, 
+        out BuiltinData builtinData)
+    {
+        #ifdef LOD_FADE_CROSSFADE
+            LODDitheringTransition(ComputeFadeMaskSeed(V, posInput.positionSS), unity_LODFade.x);
+        #endif
+
+        // TODO: Add support for depth offset. The Surface struct does not have a 
+        // DepthOffset output at the moment.
+        #ifdef _DEPTHOFFSET_ON
+            builtinData.depthOffset = surface.DepthOffset;
+            ApplyDepthOffsetPositionInput( 
+                V, surface.DepthOffset, GetViewForwardDir(), GetWorldToHClipMatrix(), posInput );
+        #endif
+
+        float3 bentNormalWS;
+        BuildSurfaceData( fragInputs, surface, V, posInput, surfaceData, bentNormalWS );
+
+        InitBuiltinData(
+            posInput,
+            surface.Alpha, 
+            bentNormalWS, 
+            -fragInputs.tangentToWorld[ 2 ],
+            fragInputs.texCoord1, 
+            fragInputs.texCoord2, 
+            builtinData );
+
+        builtinData.emissiveColor = surface.Emission;
+
+        PostInitBuiltinData(V, posInput, surfaceData, builtinData);
+    }
+
+    {% if unity.version.string == "2021.2" %}
+        #ifdef UNITY_VIRTUAL_TEXTURING
+            #ifdef OUTPUT_SPLIT_LIGHTING
+                #define DIFFUSE_LIGHTING_TARGET SV_Target2
+                #define SSS_BUFFER_TARGET SV_Target3
+            #elif defined(_WRITE_TRANSPARENT_MOTION_VECTOR)
+                #define MOTION_VECTOR_TARGET SV_Target2
+            #endif
+        #else
+            #ifdef OUTPUT_SPLIT_LIGHTING
+                #define DIFFUSE_LIGHTING_TARGET SV_Target1
+                #define SSS_BUFFER_TARGET SV_Target2
+            #elif defined(_WRITE_TRANSPARENT_MOTION_VECTOR)
+                #define MOTION_VECTOR_TARGET SV_Target1
+            #endif
+        #endif
+    {% endif %}
+
+    {% if unity.version.string == "2021.1" %}
+        #ifdef UNITY_VIRTUAL_TEXTURING
+            #define VT_BUFFER_TARGET SV_Target1
+            #define EXTRA_BUFFER_TARGET SV_Target2
+        #else
+            #define EXTRA_BUFFER_TARGET SV_Target1
+        #endif
+    {% endif %}
+    
+    void frag(SurfaceInput input
+        {% if pass.name == "GBuffer" %}
+            , OUTPUT_GBUFFER(outGBuffer)
+            #ifdef _DEPTHOFFSET_ON
+            , out float outputDepth : SV_Depth
+            #endif
+        {% elseif pass.name == "Forward" %}
+            {% if unity.version.string == "2021.2" %}
+                 , out float4 outColor : SV_Target0  // outSpecularLighting when outputting split lighting
+                #ifdef UNITY_VIRTUAL_TEXTURING
+                    , out float4 outVTFeedback : SV_Target1
+                #endif
+                #ifdef OUTPUT_SPLIT_LIGHTING
+                    , out float4 outDiffuseLighting : DIFFUSE_LIGHTING_TARGET
+                    , OUTPUT_SSSBUFFER(outSSSBuffer) : SSS_BUFFER_TARGET
+                #elif defined(_WRITE_TRANSPARENT_MOTION_VECTOR)
+                    , out float4 outMotionVec : MOTION_VECTOR_TARGET
+                #endif
+                #ifdef _DEPTHOFFSET_ON
+                    , out float outputDepth : DEPTH_OFFSET_SEMANTIC
+                #endif
+            {% elseif unity.version.string == "2021.1" %}
+                #ifdef OUTPUT_SPLIT_LIGHTING
+                    , out float4 outColor : SV_Target0,  // outSpecularLighting
+                    #ifdef UNITY_VIRTUAL_TEXTURING
+                        out float4 outVTFeedback : VT_BUFFER_TARGET,
+                    #endif
+                    out float4 outDiffuseLighting : EXTRA_BUFFER_TARGET,
+                    OUTPUT_SSSBUFFER(outSSSBuffer)
+                #else
+                    , out float4 outColor : SV_Target0
+                    #ifdef UNITY_VIRTUAL_TEXTURING
+                        ,out float4 outVTFeedback : VT_BUFFER_TARGET
+                    #endif
+                    #ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
+                        , out float4 outMotionVec : EXTRA_BUFFER_TARGET
+                    #endif // _WRITE_TRANSPARENT_MOTION_VECTOR
+                #endif // OUTPUT_SPLIT_LIGHTING
+                #ifdef _DEPTHOFFSET_ON
+                    , out float outputDepth : SV_Depth
+                #endif
+            {% else %}
+                #ifdef OUTPUT_SPLIT_LIGHTING
+                    , out float4 outColor : SV_Target0
+                    , out float4 outDiffuseLighting : SV_Target1
+                    , OUTPUT_SSSBUFFER(outSSSBuffer)
+                #else
+                    , out float4 outColor : SV_Target0
+                    #ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
+                        , out float4 outMotionVec : SV_Target1
+                    #endif
+                #endif
+                #ifdef _DEPTHOFFSET_ON
+                    , out float outputDepth : SV_Depth
+                #endif
+            {% endif %}
+        {% elseif pass.name == "ShadowCaster" %}
+            // No output
+        {% elseif pass.name == "SceneSelectionPass" %}
+            , out float4 outColor : SV_Target0
+            #ifdef _DEPTHOFFSET_ON
+                , out float outputDepth : SV_Depth
+            #endif
+        {% elseif pass.name == "DepthOnly" %}
+            #ifdef WRITE_NORMAL_BUFFER
+                , out float4 outNormalBuffer : SV_Target0
+                    #ifdef WRITE_MSAA_DEPTH
+                        , out float1 depthColor : SV_Target1
+                    #endif
+            #elif defined(WRITE_MSAA_DEPTH)
+                , out float4 outNormalBuffer : SV_Target0
+                , out float1 depthColor : SV_Target1
+            #endif
+            #ifdef _DEPTHOFFSET_ON
+                , out float outputDepth : SV_Depth
+            #endif
+        {% elseif pass.name == "Meta" %}
+            , out half4 outColor : SV_Target
+        {% elseif pass.name == "MotionVectors" %}
+            {% if unity.version.major == "2019" %}
+                // The motion vector is always the first buffer
+                , out float4 outMotionVector : SV_Target0
+                // Write the normal buffer
+                #if defined(WRITE_NORMAL_BUFFER) || defined(WRITE_MSAA_DEPTH)
+                    , out float4 outNormalBuffer : SV_Target1
+                #endif
+                // Output the depth as a color if required
+                #ifdef WRITE_MSAA_DEPTH
+                    , out float1 depthColor : SV_Target2
+                #endif
+            {% else %}
+                #ifdef WRITE_MSAA_DEPTH
+                    // We need the depth color as SV_Target0 for alpha to coverage
+                    , out float4 depthColor : SV_Target0
+                    , out float4 outMotionVector : SV_Target1
+                    #define SV_TARGET_NORMAL SV_Target2
+                #else
+                    // When no MSAA, the motion vector is always the first buffer
+                    , out float4 outMotionVector : SV_Target0
+                    #define SV_TARGET_NORMAL SV_Target1
+                #endif
+
+                // Decal buffer must be last as it is bind but we can optionally write into it (based on _DISABLE_DECALS)
+                #ifdef WRITE_NORMAL_BUFFER
+                    , out float4 outNormalBuffer : SV_TARGET_NORMAL
+                #endif
+            {% endif %}
+        {% endif %}
+            )
+    {
+        UNITY_SETUP_INSTANCE_ID(input);
+        UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+
+        {% if pass.name == "Forward" %}
+            #ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
+                outMotionVec = float4(2.0, 0.0, 0.0, 0.0);
+            #endif
+        {% endif %}
+
+        Surface surface = (Surface)0;
+        surface.Albedo = 1;
+        surface.Emission = 0;
+        surface.Metallic = 0;
+        surface.Smoothness = 0.5;
+        surface.Occlusion = 1;
+        surface.Alpha = 1;
+        surface.Normal = float3(0,0,1);
+        SurfaceMethod( input, surface );
+
+        FragInputs fragInputs = (FragInputs)0;
+        fragInputs.tangentToWorld = k_identity3x3;
+        fragInputs.positionSS = input.positionCS;
+        fragInputs.positionRWS = input.positionWS;
+        float4 tangentWS = float4(input.tangentWS.xyz, input.tangentWS.w > 0.0 ? 1.0 : -1.0); 
+        fragInputs.tangentToWorld = BuildTangentToWorld(tangentWS, input.normalWS);
+        fragInputs.texCoord0 = input.uv0;
+        fragInputs.texCoord1 = input.uv1;
+        fragInputs.texCoord2 = input.uv2;
+        #ifdef SHADER_STAGE_FRAGMENT
+            fragInputs.isFrontFace = IS_FRONT_VFACE(input.cullFace, true, false); 
+        #endif
+
+        fragInputs.positionSS.xy = 
+            _OffScreenRendering > 0 
+                ? (fragInputs.positionSS.xy * _OffScreenDownsampleFactor) 
+                : fragInputs.positionSS.xy;
+                
+        uint2 tileIndex = uint2(fragInputs.positionSS.xy) / GetTileSize ();
+
+        PositionInputs posInput = 
+            GetPositionInput( 
+                fragInputs.positionSS.xy, 
+                _ScreenSize.zw, 
+                fragInputs.positionSS.z, 
+                fragInputs.positionSS.w, 
+                fragInputs.positionRWS.xyz, 
+                tileIndex );
+
+        float3 V = GetWorldSpaceNormalizeViewDir(fragInputs.positionRWS);
+
+        SurfaceData surfaceData = (SurfaceData)0;
+        BuiltinData builtinData = (BuiltinData)0;
+        GetSurfaceAndBuiltinData(
+            surface, 
+            fragInputs, 
+            V,
+            posInput, 
+            surfaceData, 
+            builtinData);
+
+        {% if pass.name == "Forward" %}
+
+            BSDFData bsdfData = ConvertSurfaceDataToBSDFData(fragInputs.positionSS.xy, surfaceData);
+            PreLightData preLightData = GetPreLightData(V, posInput, bsdfData);
+
+            outColor = float4(0.0, 0.0, 0.0, 0.0);
+
+            #ifdef DEBUG_DISPLAY
+                // Init in debug display mode to quiet warning.
+                #ifdef OUTPUT_SPLIT_LIGHTING
+                    outDiffuseLighting = 0;
+                    ENCODE_INTO_SSSBUFFER(surfaceData, posInput.positionSS, outSSSBuffer);
+                #endif
+
+                // Output the debug data.
+                outColor = ForwardDebug( fragInputs, surfaceData, builtinData, bsdfData, posInput );
+            #else
+
+                #ifdef _SURFACE_TYPE_TRANSPARENT
+                    uint featureFlags = LIGHT_FEATURE_MASK_FLAGS_TRANSPARENT;
+                #else
+                    uint featureFlags = LIGHT_FEATURE_MASK_FLAGS_OPAQUE;
+                #endif
+                float3 diffuseLighting;
+                float3 specularLighting;
+
+                // NOTE: Custom lighting method is not supported for HDRP.
+
+                {% if unity.version.major > 2020 or unity.version.string == "2020.2" or unity.version.string == "2020.3" %}
+                    LightLoopOutput lightLoopOutput;
+                    LightLoop(
+                        V, 
+                        posInput, 
+                        preLightData, 
+                        bsdfData, 
+                        builtinData, 
+                        featureFlags, 
+                        lightLoopOutput);
+
+                    diffuseLighting = lightLoopOutput.diffuseLighting;
+                    specularLighting = lightLoopOutput.specularLighting;
+                {% else %}
+                    LightLoop(
+                        V, 
+                        posInput, 
+                        preLightData, 
+                        bsdfData, 
+                        builtinData, 
+                        featureFlags, 
+                        diffuseLighting, 
+                        specularLighting);
+                {% endif %}
+
+                diffuseLighting *= GetCurrentExposureMultiplier();
+                specularLighting *= GetCurrentExposureMultiplier();
+
+                #ifdef OUTPUT_SPLIT_LIGHTING
+                    if (_EnableSubsurfaceScattering != 0 && ShouldOutputSplitLighting(bsdfData))
+                    {
+                        outColor = float4(specularLighting, 1.0);
+                        outDiffuseLighting = float4(TagLightingForSSS(diffuseLighting), 1.0);
+                    }
+                    else
+                    {
+                        outColor = float4(diffuseLighting + specularLighting, 1.0);
+                        outDiffuseLighting = 0;
+                    }
+                    ENCODE_INTO_SSSBUFFER(surfaceData, posInput.positionSS, outSSSBuffer);
+                #else
+                    outColor = ApplyBlendMode(diffuseLighting, specularLighting, builtinData.opacity);
+                    outColor = EvaluateAtmosphericScattering(posInput, V, outColor);
+                #endif
+            #endif
+        
+        {% elseif pass.name == "GBuffer" %}
+
+            ENCODE_INTO_GBUFFER( surfaceData, builtinData, posInput.positionSS, outGBuffer );
+            #ifdef _DEPTHOFFSET_ON
+                outputDepth = posInput.deviceDepth;
+            #endif
+
+        {% elseif pass.name == "SceneSelectionPass" %}
+            outColor = float4( _ObjectId, _PassValue, 1.0, 1.0 );
+
+        {% elseif pass.name == "DepthOnly" %}
+
+            #ifdef WRITE_NORMAL_BUFFER
+                EncodeIntoNormalBuffer( 
+                    ConvertSurfaceDataToNormalData( surfaceData ), 
+                    posInput.positionSS, 
+                    outNormalBuffer );
+                #ifdef WRITE_MSAA_DEPTH
+                    depthColor = input.positionCS.z;
+                #endif
+            #elif defined(WRITE_MSAA_DEPTH)
+                outNormalBuffer = float4( 0.0, 0.0, 0.0, 1.0 );
+                depthColor = input.positionCS.z;
+            #endif
+
+        {% elseif pass.name == "Meta" %}
+
+            BSDFData bsdfData = ConvertSurfaceDataToBSDFData(fragInputs.positionSS.xy, surfaceData);
+            LightTransportData lightTransportData = GetLightTransportData(surfaceData, builtinData, bsdfData);
+
+            float4 res = float4(0.0, 0.0, 0.0, 1.0);
+            if (unity_MetaFragmentControl.x)
+            {
+                res.rgb = clamp(pow(abs(lightTransportData.diffuseColor), saturate(unity_OneOverOutputBoost)), 0, unity_MaxOutputValue);
+            }
+
+            if (unity_MetaFragmentControl.y)
+            {
+                res.rgb = lightTransportData.emissiveColor;
+            }
+
+            outColor = res;
+
+        {% elseif pass.name == "ShadowCaster" %}
+            // No output
+
+        {% elseif pass.name == "MotionVectors" %}
+
+            // TODO: How to allow overriden motion vector from GetSurfaceAndBuiltinData ?
+            float2 motionVector = CalculateMotionVector( input.currentPositionCS, input.previousPositionCS );
+
+            // Convert from Clip space (-1..1) to NDC 0..1 space.
+            // Note it doesn't mean we don't have negative value, we store negative or positive offset in NDC space.
+            // Note: ((positionCS * 0.5 + 0.5) - (previousPositionCS * 0.5 + 0.5)) = (motionVector * 0.5)
+            EncodeMotionVector(motionVector * 0.5, outMotionVector);
+
+            // Note: unity_MotionVectorsParams.y is 0 is forceNoMotion is enabled
+            bool forceNoMotion = unity_MotionVectorsParams.y == 0.0;
+
+            // Setting the motionVector to a value more than 2 set as a flag for "force no motion". This is valid because, given that the velocities are in NDC,
+            // a value of >1 can never happen naturally, unless explicitely set. 
+            if (forceNoMotion)
+                outMotionVector = float4(2.0, 0.0, 0.0, 0.0);
+
+            #ifdef WRITE_NORMAL_BUFFER
+                EncodeIntoNormalBuffer( 
+                    ConvertSurfaceDataToNormalData( surfaceData ), 
+                    posInput.positionSS, 
+                    outNormalBuffer );
+            #endif
+
+            #ifdef WRITE_MSAA_DEPTH
+                depthColor = input.positionCS.z;
+
+                {% if unity.version.major == "2019" %}
+                    // Due to the binding order of these three render targets, we need to have them both declared
+                    outNormalBuffer = float4(0.0, 0.0, 0.0, 1.0);
+                {% endif %}
+            #endif
+
+        {% else %}
+            outColor = 0;
+
+        {% endif %}
+    }
+{% endhd %}

@@ -1,0 +1,111 @@
+﻿{% comment %}
+// Copyright 2020 Visual Design Cafe. All rights reserved.
+// This shader was created using ShaderX, a shader framework by Visual Design Cafe.
+// https://www.visualdesigncafe.com/shaderx
+
+// Package: Nature Shaders
+// Website: https://www.visualdesigncafe.com/nature-shaders
+// Documentation: https://support.visualdesigncafe.com/hc/categories/900000043503
+{% endcomment %}
+
+Shader "Hidden/NatureCollider"
+{
+    Properties
+    { }
+    SubShader
+    {
+        Tags { "RenderType"="Opaque" }
+        LOD 100
+        
+        Pass
+        {
+            Cull Front
+            ZWrite On
+            ZTest LEqual
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+			#pragma multi_compile_instancing
+
+            #define STANDARD_RENDER_PIPELINE
+
+            #include "UnityCG.cginc"
+
+            float g_TrailPopupSpeed = 1;
+
+            float4 _InteractionZonePosition;
+            float4 _InteractionZoneSize;
+            sampler2D _InteractionData;
+            float _InteractionDataTexelSize;
+            float _InteractionConstantFade;
+
+            // TODO: Move this calculations so that we don't need to calculate the UV for each sample.
+            float2 InteractionDataUV( float3 vertexWorldPosition )
+            {
+                float2 relativePosition = vertexWorldPosition.xz - _InteractionZonePosition.xz + _InteractionZoneSize.xz * 0.5;
+                float2 normalizedPosition = relativePosition / _InteractionZoneSize.xz;
+                return normalizedPosition;
+            }
+
+            float4 SampleInteractionData( float3 vertexWorldPosition, float2 offset )
+            {
+                float2 uv = InteractionDataUV( vertexWorldPosition ) + offset;
+                #if !UNITY_UV_STARTS_AT_TOP
+                    uv.y = 1-uv.y;
+                #endif
+                return tex2Dlod(_InteractionData, float4(uv.x, uv.y, 0, 0));
+            }
+
+            float3 _Offset;
+            UNITY_INSTANCING_BUFFER_START(Props)
+                UNITY_DEFINE_INSTANCED_PROP(float, _TrailDuration)
+            UNITY_INSTANCING_BUFFER_END(Props)
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float3 normal : NORMAL;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+                float height : TEXCOORD0;
+                float4 prevData : TEXCOORD1;
+                float3 worldPosition : TEXCOORD2;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            v2f vert (appdata v)
+            {
+                v2f o;
+
+				UNITY_SETUP_INSTANCE_ID (v);
+                UNITY_TRANSFER_INSTANCE_ID (v, o);
+
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.worldPosition = mul(unity_ObjectToWorld, v.vertex);
+                o.prevData = SampleInteractionData( o.worldPosition, _Offset.xz ) + _Offset.yyyy;
+
+                float ground = _InteractionZonePosition.y - _InteractionZoneSize.y * 0.5;
+                o.height = 
+                    1 - saturate( (o.worldPosition.y - ground) / _InteractionZoneSize.y);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+				UNITY_SETUP_INSTANCE_ID (i);
+                float trailDuration = UNITY_ACCESS_INSTANCED_PROP(Props, _TrailDuration);
+                if( trailDuration > 0 )
+                    trailDuration += 1.0/g_TrailPopupSpeed;
+                return i.height > i.prevData.g
+                    ? float4(i.height, i.height, trailDuration, 0)
+                    : i.prevData;
+            }
+            ENDCG
+        }
+    }
+}

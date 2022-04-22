@@ -1,0 +1,30 @@
+{% comment %}
+// Copyright 2020 Visual Design Cafe. All rights reserved.
+// This shader was created using ShaderX, a shader framework by Visual Design Cafe.
+// https://www.visualdesigncafe.com/shaderx
+
+// Package: Nature Shaders
+// Website: https://www.visualdesigncafe.com/nature-shaders
+// Documentation: https://support.visualdesigncafe.com/hc/categories/900000043503
+{% endcomment %}
+
+float4 _OverlayPosition;
+float4 _OverlaySize;
+sampler2D _OverlayData;
+float _OverlayDataTexelSize;
+
+float2 OverlayUV( float3 positionWS )
+{
+    float2 relativePosition = positionWS.xz - _OverlayPosition.xz + _OverlaySize.xz * 0.5;
+    float2 normalizedPosition = relativePosition / _OverlaySize.xz;
+    return normalizedPosition;
+}
+
+float4 SampleOverlay( float3 positionWS )
+{
+    float2 uv = OverlayUV( positionWS );
+    #if !UNITY_UV_STARTS_AT_TOP
+        uv.y = 1-uv.y;
+    #endif
+    return tex2Dlod(_OverlayData, float4(uv.x, uv.y, 0, 0));
+}

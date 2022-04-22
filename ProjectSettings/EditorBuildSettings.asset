@@ -1,0 +1,12 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/NatureManufacture Assets/Mountain Environment/Demo Scenes/URP Mountain
+      Scene.unity
+    guid: 94e9abb0d3080c541bb461db93f5ee7c
+  m_configObjects: {}

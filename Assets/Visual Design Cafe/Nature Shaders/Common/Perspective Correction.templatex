@@ -1,0 +1,9 @@
+void CorrectPerspective( inout float3 positionWS, float3 viewDirectionWS, float mask )
+{
+    float upDotView = dot(float3(0, 1, 0), viewDirectionWS);
+    positionWS.xyz += 
+        mul( UNITY_MATRIX_I_V, float4(0,1,0,0) ).xyz 
+            * (upDotView * upDotView)
+            * mask
+            * saturate( distance(positionWS, _WorldSpaceCameraPos.xyz) ); 
+}
