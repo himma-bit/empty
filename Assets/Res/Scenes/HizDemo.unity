@@ -397,12 +397,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _windSettings:
     WindDirection: {x: -0.93855405, y: -0.34513235}
-    WindStrength: 0
-    WindSpeed: 0.5
-    Turbulence: 0
+    WindStrength: 0.5
+    WindSpeed: 0.75
+    Turbulence: 0.5
   _sourceWindZone: {fileID: 0}
   _gustNoise: {fileID: 2800000, guid: b564ef71400a25f48a92b590802a9b99, type: 3}
-  _selectedPreset: 0
+  _selectedPreset: 3
 --- !u!4 &891176531
 Transform:
   m_ObjectHideFlags: 0

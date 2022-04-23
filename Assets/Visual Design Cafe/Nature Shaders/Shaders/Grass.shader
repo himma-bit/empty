@@ -2869,6 +2869,7 @@ Shader "Universal Render Pipeline/Nature Shaders/Grass"
             float _SpecularHighlights;
             float _EnvironmentReflections;
             
+            int _ClusterOffset;
             CBUFFER_END
             
             SAMPLER( sampler_Albedo );
@@ -5031,6 +5032,7 @@ Shader "Universal Render Pipeline/Nature Shaders/Grass"
             float _SpecularHighlights;
             float _EnvironmentReflections;
             
+            int _ClusterOffset;
             CBUFFER_END
             
             SAMPLER( sampler_Albedo );
@@ -7189,6 +7191,7 @@ Shader "Universal Render Pipeline/Nature Shaders/Grass"
             float _SpecularHighlights;
             float _EnvironmentReflections;
             
+            int _ClusterOffset;
             CBUFFER_END
             
             SAMPLER( sampler_Albedo );
@@ -9358,6 +9361,7 @@ Shader "Universal Render Pipeline/Nature Shaders/Grass"
             float _SpecularHighlights;
             float _EnvironmentReflections;
             
+            int _ClusterOffset;
             CBUFFER_END
             
             SAMPLER( sampler_Albedo );
@@ -11558,6 +11562,7 @@ Shader "Universal Render Pipeline/Nature Shaders/Grass"
             float _SpecularHighlights;
             float _EnvironmentReflections;
             
+            int _ClusterOffset;
             CBUFFER_END
             
             SAMPLER( sampler_Albedo );

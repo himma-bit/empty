@@ -2,15 +2,21 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!21 &2100000
 Material:
-  serializedVersion: 6
+  serializedVersion: 8
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Pine Trunk
   m_Shader: {fileID: 4800000, guid: 5354841ef6d24a94ab5a4d1b80a940fb, type: 3}
-  m_ShaderKeywords: _BAKED_MESH_DATA _COLOR_TINT _LIGHTING_QUALITY_HIGH _NORMALMAP
-    _SURFACE_MAP_PACKED _WIND
+  m_ValidKeywords:
+  - _COLOR_TINT
+  - _LIGHTING_QUALITY_HIGH
+  - _NORMALMAP
+  - _SURFACE_MAP_PACKED
+  - _WIND
+  m_InvalidKeywords:
+  - _INTERACTION_OFF
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
@@ -358,12 +364,13 @@ Material:
     - _Anisotropy: 0
     - _Asperity: 1
     - _BackfaceSmoothnessScale: 1
-    - _BakedMeshData: 1
+    - _BakedMeshData: 0
     - _BaseMapEncoding: 1
     - _BillboardMode: 0
     - _BillboardShadowMode: 0
     - _BlendMode: 0
     - _BumpScale: 1
+    - _ClusterOffset: 0
     - _CoatCoverage: 1
     - _CoatIOR: 0.5
     - _CoatMask: 0
@@ -459,8 +466,8 @@ Material:
     - _NormalMapScale: 1
     - _NormalMapSpace: 0
     - _NormalScale: 1
-    - _ObjectHeight: 0.5
-    - _ObjectRadius: 0.5
+    - _ObjectHeight: 15.63
+    - _ObjectRadius: 4.69
     - _OcclusionStrength: 0.45
     - _OpaqueCullMode: 2
     - _Overlay: 0
