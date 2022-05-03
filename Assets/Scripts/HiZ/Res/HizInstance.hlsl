@@ -19,6 +19,11 @@
         unity_ObjectToWorld = data.mat;
         unity_WorldToObject = data.inverseMat;
     }
+#else
+    void unity_instancing_procedural_func()
+    {
+        
+    }
 #endif
     
 #endif
