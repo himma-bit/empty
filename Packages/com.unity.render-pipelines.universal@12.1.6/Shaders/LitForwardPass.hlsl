@@ -87,6 +87,7 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 
     inputData.normalWS = NormalizeNormalPerPixel(inputData.normalWS);
     inputData.viewDirectionWS = viewDirWS;
+    inputData.positionCS = input.positionCS;
 
 #if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR)
     inputData.shadowCoord = input.shadowCoord;

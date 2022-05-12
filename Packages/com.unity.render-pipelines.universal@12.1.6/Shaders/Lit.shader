@@ -94,6 +94,8 @@ Shader "Universal Render Pipeline/Lit"
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
 
+            #pragma enable_d3d11_debug_symbols
+
             // -------------------------------------
             // Material Keywords
             #pragma shader_feature_local _NORMALMAP
@@ -123,6 +125,7 @@ Shader "Universal Render Pipeline/Lit"
             #pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
             #pragma multi_compile_fragment _ _LIGHT_LAYERS
             #pragma multi_compile_fragment _ _LIGHT_COOKIES
+            #pragma multi_compile_fragment _ _CONTACT_SHADOW
             #pragma multi_compile _ _CLUSTERED_RENDERING
 
             // -------------------------------------
@@ -162,6 +165,8 @@ Shader "Universal Render Pipeline/Lit"
             HLSLPROGRAM
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
+            
+            #pragma enable_d3d11_debug_symbols
 
             // -------------------------------------
             // Material Keywords
@@ -201,6 +206,8 @@ Shader "Universal Render Pipeline/Lit"
             HLSLPROGRAM
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
+
+            #pragma enable_d3d11_debug_symbols
 
             // -------------------------------------
             // Material Keywords
@@ -267,6 +274,8 @@ Shader "Universal Render Pipeline/Lit"
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
 
+            #pragma enable_d3d11_debug_symbols
+
             #pragma vertex DepthOnlyVertex
             #pragma fragment DepthOnlyFragment
 
@@ -297,6 +306,8 @@ Shader "Universal Render Pipeline/Lit"
             HLSLPROGRAM
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
+
+            #pragma enable_d3d11_debug_symbols
 
             #pragma vertex DepthNormalsVertex
             #pragma fragment DepthNormalsFragment
@@ -331,6 +342,8 @@ Shader "Universal Render Pipeline/Lit"
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
 
+            #pragma enable_d3d11_debug_symbols
+
             #pragma vertex UniversalVertexMeta
             #pragma fragment UniversalFragmentMetaLit
 
@@ -362,6 +375,8 @@ Shader "Universal Render Pipeline/Lit"
             HLSLPROGRAM
             #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
+
+            #pragma enable_d3d11_debug_symbols
 
             #pragma vertex vert
             #pragma fragment frag

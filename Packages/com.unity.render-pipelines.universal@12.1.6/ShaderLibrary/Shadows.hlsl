@@ -401,6 +401,38 @@ half MainLightShadow(float4 shadowCoord, float3 positionWS, half4 shadowMask, ha
     return MixRealtimeAndBakedShadows(realtimeShadow, bakedShadow, shadowFade);
 }
 
+float GetContactShadow(float2 normalizedScreenSpaceUV)
+{
+#if _CONTACT_SHADOW
+    return 1.0-SAMPLE_TEXTURE2D(_ContactShadowMap, sampler_ContactShadowMap, normalizedScreenSpaceUV).r;
+#else
+    return 1.0;
+#endif
+}
+
+half MainLightShadowWithContactShadow(float4 shadowCoord, float3 positionWS, float2 normalizedScreenSpaceUV, half4 shadowMask, half4 occlusionProbeChannels)
+{
+    half realtimeShadow = MainLightRealtimeShadow(shadowCoord);
+    
+    float contactShadow = GetContactShadow(normalizedScreenSpaceUV);
+
+    realtimeShadow = min(realtimeShadow, contactShadow);
+    
+    #ifdef CALCULATE_BAKED_SHADOWS
+    half bakedShadow = BakedShadow(shadowMask, occlusionProbeChannels);
+    #else
+    half bakedShadow = half(1.0);
+    #endif
+
+    #ifdef MAIN_LIGHT_CALCULATE_SHADOWS
+    half shadowFade = GetMainLightShadowFade(positionWS);
+    #else
+    half shadowFade = half(1.0);
+    #endif
+
+    return MixRealtimeAndBakedShadows(realtimeShadow, bakedShadow, shadowFade);
+}
+
 half AdditionalLightShadow(int lightIndex, float3 positionWS, half3 lightDirection, half4 shadowMask, half4 occlusionProbeChannels)
 {
     half realtimeShadow = AdditionalLightRealtimeShadow(lightIndex, positionWS, lightDirection);

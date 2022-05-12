@@ -1,0 +1,234 @@
+#pragma kernel ContactShadowMap
+
+#pragma multi_compile _ ENABLE_MSAA
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+// #include "Packages/com.unity.shadergraph@12.1.6/ShaderGraphLibrary/ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.universal@12.1.6/ShaderLibrary/Input.hlsl"
+
+#define USE_FPTL_LIGHTLIST // Use light tiles for contact shadows
+
+#pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch
+
+#ifdef SHADER_API_PSSL
+#include SHADER_COMPILER_GLOBAL_OPTIMIZE_REGISTER_USAGE
+#endif
+
+#pragma enable_d3d11_debug_symbols
+
+#define DEFERRED_SHADOW_TILE_SIZE 8
+
+TEXTURE2D_FLOAT(_CameraDepthTexture);
+SAMPLER(sampler_CameraDepthTexture);
+float4 _CameraDepthTexture_TexelSize;
+
+RWTexture2D<float> _ContactShadowTextureUAV;
+
+CBUFFER_START(ContactShadowParameters)
+float4  _ContactShadowParamsParameters;
+float4  _ContactShadowParamsParameters2;
+float4  _ContactShadowParamsParameters3;
+CBUFFER_END
+
+#define _ContactShadowLength                _ContactShadowParamsParameters.x
+#define _ContactShadowDistanceScaleFactor   _ContactShadowParamsParameters.y
+#define _ContactShadowFadeEnd               _ContactShadowParamsParameters.z
+#define _ContactShadowFadeOneOverRange      _ContactShadowParamsParameters.w
+// #define _RenderTargetHeight                 _ContactShadowParamsParameters2.x
+#define _ContactShadowMinDistance           _ContactShadowParamsParameters2.y
+#define _ContactShadowFadeInEnd             _ContactShadowParamsParameters2.z
+// #define _ContactShadowBias                  _ContactShadowParamsParameters2.w
+#define _SampleCount                        (int)_ContactShadowParamsParameters3.x
+#define _ContactShadowThickness             _ContactShadowParamsParameters3.y
+#define _FrameCountMod8                     (int)_ContactShadowParamsParameters3.z
+
+float SampleDepth(float2 uv)
+{
+    return SAMPLE_TEXTURE2D_LOD(_CameraDepthTexture,sampler_CameraDepthTexture, uv, 0).r;    
+}
+
+float LoadDepth(uint2 uv)
+{
+	return LOAD_TEXTURE2D(_CameraDepthTexture, uv).r;    
+}
+
+float GetDepthCompareThreshold(float step, float rayStartZ, float rayOrthoZ)
+{
+    return abs(rayOrthoZ - rayStartZ) * _ContactShadowThickness * max(0.07, step);
+}
+
+bool CompareDepth(float depthDiff, float compareThreshold)
+{
+    return abs(compareThreshold - depthDiff) < compareThreshold;
+}
+
+bool ScreenSpaceShadowRayCast(float3 positionWS, float3 rayDirWS, float rayLength, float dither)
+{
+    float3 rayStartWS = positionWS;
+    float3 rayEndWS = rayStartWS + rayDirWS * rayLength;
+
+    float4 rayStartCS = TransformWorldToHClip(rayStartWS);
+    float4 rayEndCS = TransformWorldToHClip(rayEndWS);
+
+    // Here we compute a ray perpendicular to view space. This is the ray we use to compute the threshold for rejecting samples.
+    // This is done this way so that the threshold is less dependent of ray slope.
+    float4 rayOrthoViewSpace = rayStartCS + float4(GetViewToHClipMatrix()[0][2], GetViewToHClipMatrix()[1][2], GetViewToHClipMatrix()[2][2], GetViewToHClipMatrix()[3][2]) * rayLength;
+    rayOrthoViewSpace = rayOrthoViewSpace / rayOrthoViewSpace.w;
+
+    rayStartCS.xyz = rayStartCS.xyz / rayStartCS.w;
+    rayEndCS.xyz = rayEndCS.xyz / rayEndCS.w;
+
+    // Pixel to light ray in clip space.
+    float3 rayDirCS = rayEndCS.xyz - rayStartCS.xyz;
+
+    float step = 1.0f / _SampleCount;
+    float compareThreshold = GetDepthCompareThreshold(step, rayStartCS.z, rayOrthoViewSpace.z);
+
+    float occluded = 0.0f;
+
+    // From this point on, all the marching will be done in UV space + Z
+    float2 startUV = rayStartCS.xy * 0.5f + 0.5f;
+    startUV.y = 1.0f - startUV.y;
+    float3 rayStart = float3(startUV, rayStartCS.z);
+    float3 rayDir = float3(rayDirCS.x * 0.5f, -rayDirCS.y * 0.5f, rayDirCS.z);
+
+    float t = step * dither + step;
+
+    bool tracingHalfRes = true;
+    int i = 0;
+
+    // While instead of for loop to fix HLSLcc compiler error by converting for loop to while loop (case 1158280)
+    while (true)
+    {
+        if (!(i < _SampleCount))
+            break;
+
+        float3 sampleAlongRay = rayStart + t * rayDir;
+
+
+        if (any(sampleAlongRay.xy < 0) || any(sampleAlongRay.xy > 1))
+        {
+            break;
+        }
+        
+        // Depth buffer depth for this sample
+        float sampleDepth = SampleDepth(saturate(sampleAlongRay.xy));
+
+        float depthDiff = sampleDepth - sampleAlongRay.z;
+
+        if (depthDiff > 0.0f && CompareDepth(depthDiff, compareThreshold) && sampleAlongRay.z > 0)
+        {
+            if (tracingHalfRes)
+            {
+                // Move permanentely to full res. There is a good chance we've hit something, so next full res sample will find the intersection.
+                // If not, then allowing each thread to go back and forth between half and full was not beneficial to perf.
+                tracingHalfRes = false;
+                continue;
+            }
+            else
+            {
+                occluded = 1.0f;
+                break;
+            }
+        }
+
+        t += step;
+        i++;
+    }
+
+    return occluded;
+}
+
+// Returns distance along ray that the first hit occurred, or negative on miss
+// Sets bOutHitCastDynamicShadow if the hit point is marked as a dynamic shadow caster
+float ShadowRayCast(
+	float3 RayOriginTranslatedWorld, float3 RayDirection, float RayLength,
+	int NumSteps, float StepOffset)
+{
+	float4 RayStartClip	= mul( GetWorldToHClipMatrix(), float4( RayOriginTranslatedWorld, 1 ) );
+	float4 RayDirClip	= mul( GetWorldToHClipMatrix(), float4( RayDirection * RayLength, 0 ) );
+	float4 RayEndClip	= RayStartClip + RayDirClip;
+
+	float3 RayStartScreen = RayStartClip.xyz / RayStartClip.w;
+	float3 RayEndScreen = RayEndClip.xyz / RayEndClip.w;
+	
+	float3 RayStartUVz = float3( RayStartScreen.xy * float2(0.5, -0.5) + 0.5, RayStartScreen.z );
+	float3 RayEndUVz = float3( RayEndScreen.xy * float2(0.5, -0.5) + 0.5, RayEndScreen.z );
+	float3 RayStepUVz = RayEndUVz - RayStartUVz;
+
+	float4 RayDepthClip	= RayStartClip + mul( GetViewToHClipMatrix(), float4( 0, 0, RayLength, 0 ) );
+	float3 RayDepthScreen = RayDepthClip.xyz / RayDepthClip.w;
+
+	const float Step = 1.0 / NumSteps;
+
+	// *2 to get less moire pattern in extreme cases, larger values make object appear not grounded in reflections
+	const float CompareTolerance = abs( RayDepthScreen.z - RayStartScreen.z ) * Step * 2;
+
+	float SampleTime = StepOffset * Step + Step;
+
+	float FirstHitTime = -1.0;
+
+	[unroll]
+	for( int i = 0; i < NumSteps; i++ )
+	{
+		float3 SampleUVz = RayStartUVz + RayStepUVz * SampleTime;
+
+		float sampleDepth = SampleDepth(SampleUVz.xy);
+		float DepthDiff = SampleUVz.z - sampleDepth;
+		bool Hit = abs( DepthDiff + CompareTolerance ) < CompareTolerance;
+
+		FirstHitTime = (Hit && FirstHitTime < 0.0) ? SampleTime : FirstHitTime;
+
+		SampleTime += Step;
+	}
+
+	float HitDistance = -1.0;
+
+	if ( FirstHitTime > 0.0 )
+	{
+		// Off screen masking
+		float3 HitUVz = RayStartUVz + RayStepUVz * FirstHitTime;
+		bool bValidUV = all( 0.0 < HitUVz.xy && HitUVz.xy < 1.0 );
+		HitDistance = bValidUV ? ( FirstHitTime * RayLength ) : -1.0;
+	}	
+	
+	return HitDistance;
+}
+
+bool ComputeContactShadow(float3 positionWS, float3 direction, float dither)
+{
+    bool occluded = false;
+    if (_ContactShadowLength > 0.0f)
+    {
+    	// unreal
+    	occluded = ShadowRayCast(positionWS, direction, _ContactShadowLength, 12, dither) > 0;
+    	// Unity HDRP
+        // occluded = ScreenSpaceShadowRayCast(positionWS, direction, _ContactShadowLength, dither);
+    }
+
+    return occluded;
+}
+
+[numthreads(DEFERRED_SHADOW_TILE_SIZE, DEFERRED_SHADOW_TILE_SIZE, 1)]
+void ContactShadowMap(uint2 dispatchThreadId : SV_DispatchThreadID)
+{
+    if(dispatchThreadId.x > _ScreenSize.x || dispatchThreadId.y > _ScreenSize.y)
+        return;
+    
+    uint2 pixelCoord = dispatchThreadId;
+    float depth = LoadDepth(pixelCoord);
+    PositionInputs posInput = GetPositionInput(pixelCoord.xy, _ScreenSize.zw, depth, UNITY_MATRIX_I_VP, UNITY_MATRIX_V);
+
+    // Dither pattern is shifted by 0.5 because we want to jitter the ray starting position backward and forward (so we need values between -0.5 and 0.5)
+    float dither = InterleavedGradientNoise(posInput.positionSS, _FrameCountMod8) - 0.5f;
+    
+    // discard the shadow if we're on the sky or outside of the contact shadow range
+    if (depth == UNITY_RAW_FAR_CLIP_VALUE || posInput.linearDepth - _ContactShadowFadeEnd > 1 || posInput.linearDepth < _ContactShadowMinDistance)
+    {
+        _ContactShadowTextureUAV[pixelCoord] = 0;
+    }
+    else
+    {
+        _ContactShadowTextureUAV[pixelCoord] = ComputeContactShadow(posInput.positionWS, _MainLightPosition.xyz, dither);
+    }
+}
